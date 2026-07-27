@@ -422,6 +422,7 @@ class SvgNetworkLoader extends SvgLoader<Uint8List> {
     super.theme,
     super.colorMapper,
     http.Client? httpClient,
+    required this.networkErrorIconPath,
   }) : _httpClient = httpClient;
 
   /// The [Uri] encoded resource address.
@@ -431,6 +432,9 @@ class SvgNetworkLoader extends SvgLoader<Uint8List> {
   final Map<String, String>? headers;
 
   final http.Client? _httpClient;
+
+  /// Path to an asset to show in case of http errors. Required
+  final String networkErrorIconPath;
 
   @override
   Future<Uint8List?> prepareMessage(BuildContext? context) async {
@@ -446,9 +450,7 @@ class SvgNetworkLoader extends SvgLoader<Uint8List> {
       return response.bodyBytes;
     } catch (e) {
       debugPrint(e.toString());
-      return Uint8List.fromList(
-        await File('./assets/error_network.svg').readAsBytes(),
-      );
+      return Uint8List.fromList(await File(networkErrorIconPath).readAsBytes());
     }
   }
 
