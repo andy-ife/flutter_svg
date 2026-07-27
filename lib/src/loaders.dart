@@ -436,6 +436,14 @@ class SvgNetworkLoader extends SvgLoader<Uint8List> {
   /// Path to an asset to show in case of http errors. Required
   final String networkErrorIconPath;
 
+  /// Helper to get the networkeErrorIconPath's asset from rootBundle
+  AssetBundle _resolveBundle(BuildContext? context) {
+    if (context != null) {
+      return DefaultAssetBundle.of(context);
+    }
+    return rootBundle;
+  }
+
   @override
   Future<Uint8List?> prepareMessage(BuildContext? context) async {
     try {
@@ -450,7 +458,8 @@ class SvgNetworkLoader extends SvgLoader<Uint8List> {
       return response.bodyBytes;
     } catch (e) {
       debugPrint(e.toString());
-      return Uint8List.fromList(await File(networkErrorIconPath).readAsBytes());
+      final byteData = await _resolveBundle(context).load(networkErrorIconPath);
+      return byteData.buffer.asUint8List();
     }
   }
 
