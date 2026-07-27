@@ -446,7 +446,9 @@ class SvgNetworkLoader extends SvgLoader<Uint8List> {
       return response.bodyBytes;
     } catch (e) {
       debugPrint(e.toString());
-      return Uint8List.fromList([]);
+      return Uint8List.fromList(
+        await File('./assets/error_network.svg').readAsBytes(),
+      );
     }
   }
 
