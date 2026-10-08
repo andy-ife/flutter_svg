@@ -165,34 +165,45 @@ abstract class SvgLoader<T> extends BytesLoader {
       return rootBundle;
     }
 
-    try {
-      final SvgTheme theme = getTheme(context);
-      return prepareMessage(context).then((T? message) {
-        return compute(
-          (T? message) {
-            return vg
-                .encodeSvg(
-                  xml: provideSvg(message),
-                  theme: theme.toVgTheme(),
-                  colorMapper: colorMapper == null
-                      ? null
-                      : _DelegateVgColorMapper(colorMapper!),
-                  debugName: 'Svg loader',
-                  enableClippingOptimizer: false,
-                  enableMaskingOptimizer: false,
-                  enableOverdrawOptimizer: false,
-                )
-                .buffer
-                .asByteData();
-          },
-          message,
-          debugLabel: 'Load Bytes',
-        );
-      });
-    } catch (e) {
+    // Helper to return the errorIconPath on errors
+    Future<ByteData> _errorData() {
       return _resolveBundle(
         context,
       ).load(errorIconPath ?? 'assets/svg/error_network.svg');
+    }
+
+    try {
+      final SvgTheme theme = getTheme(context);
+      return prepareMessage(context)
+          .then((T? message) {
+            return compute(
+              (T? message) {
+                return vg
+                    .encodeSvg(
+                      xml: provideSvg(message),
+                      theme: theme.toVgTheme(),
+                      colorMapper: colorMapper == null
+                          ? null
+                          : _DelegateVgColorMapper(colorMapper!),
+                      debugName: 'Svg loader',
+                      enableClippingOptimizer: false,
+                      enableMaskingOptimizer: false,
+                      enableOverdrawOptimizer: false,
+                    )
+                    .buffer
+                    .asByteData();
+              },
+              message,
+              debugLabel: 'Load Bytes',
+            ).onError((e, st) {
+              return _errorData();
+            });
+          })
+          .onError((e, st) {
+            return _errorData();
+          });
+    } catch (e) {
+      return _errorData();
     }
   }
 
