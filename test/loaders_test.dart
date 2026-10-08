@@ -1,3 +1,5 @@
+import 'package:vector_graphics_compiler/vector_graphics_compiler.dart' as vg;
+import 'package:flutter/foundation.dart';
 import 'dart:convert';
 import 'dart:typed_data';
 
@@ -120,7 +122,118 @@ void main() {
     expect(client.closeCalled, isFalse);
   });
 
-  
+  testWidgets('All loaders use default or passed errorIconPath on failure', (
+    tester,
+  ) async {
+    final defaultSvgStr = '<svg width="1" height="1"></svg>';
+    final customSvgStr = '<svg width="2" height="2"></svg>';
+
+    final defaultVgBytes = vg
+        .encodeSvg(
+          xml: defaultSvgStr,
+          debugName: 'default',
+          enableClippingOptimizer: false,
+          enableMaskingOptimizer: false,
+          enableOverdrawOptimizer: false,
+        )
+        .buffer
+        .asByteData();
+
+    final customVgBytes = vg
+        .encodeSvg(
+          xml: customSvgStr,
+          debugName: 'custom',
+          enableClippingOptimizer: false,
+          enableMaskingOptimizer: false,
+          enableOverdrawOptimizer: false,
+        )
+        .buffer
+        .asByteData();
+
+    final bundle = SyncTestBundle(<String, ByteData>{
+      'assets/svg/error_network.svg': ByteData.view(
+        Uint8List.fromList(defaultSvgStr.codeUnits).buffer,
+      ),
+      'custom_error.svg': ByteData.view(
+        Uint8List.fromList(customSvgStr.codeUnits).buffer,
+      ),
+    });
+
+    BuildContext? ctx;
+    await tester.pumpWidget(
+      DefaultAssetBundle(
+        bundle: bundle,
+        child: Builder(
+          builder: (c) {
+            ctx = c;
+            return const SizedBox();
+          },
+        ),
+      ),
+    );
+
+    // SvgNetworkLoader (compiles fallback because prepareMessage handles the error)
+    await http.runWithClient(() async {
+      final loader1 = const SvgNetworkLoader('http://invalid.url');
+      final bytes1 = await loader1.loadBytes(ctx);
+      expect(
+        bytes1.buffer.asUint8List().toList(),
+        defaultVgBytes.buffer.asUint8List().toList(),
+      );
+
+      final loader2 = const SvgNetworkLoader(
+        'http://invalid2.url',
+        errorIconPath: 'custom_error.svg',
+      );
+      final bytes2 = await loader2.loadBytes(ctx);
+      expect(
+        bytes2.buffer.asUint8List().toList(),
+        customVgBytes.buffer.asUint8List().toList(),
+      );
+    }, () => ThrowingClient());
+
+    svg.cache.clear();
+
+    // SvgStringLoader (doesn't compile fallback because _load catch block returns it raw)
+    final loader3 = const SvgStringLoader('<invalid');
+    final bytes3 = await loader3.loadBytes(ctx);
+    expect(bytes3.buffer.asUint8List().toList(), defaultSvgStr.codeUnits);
+
+    final loader4 = const SvgStringLoader(
+      '<invalid2',
+      errorIconPath: 'custom_error.svg',
+    );
+    final bytes4 = await loader4.loadBytes(ctx);
+    expect(bytes4.buffer.asUint8List().toList(), customSvgStr.codeUnits);
+
+    svg.cache.clear();
+
+    // SvgAssetLoader
+    final loader5 = const SvgAssetLoader('missing.svg');
+    final bytes5 = await loader5.loadBytes(ctx);
+    expect(bytes5.buffer.asUint8List().toList(), defaultSvgStr.codeUnits);
+
+    final loader6 = const SvgAssetLoader(
+      'missing2.svg',
+      errorIconPath: 'custom_error.svg',
+    );
+    final bytes6 = await loader6.loadBytes(ctx);
+    expect(bytes6.buffer.asUint8List().toList(), customSvgStr.codeUnits);
+
+    svg.cache.clear();
+
+    // SvgBytesLoader
+    final loader7 = SvgBytesLoader(Uint8List.fromList([0]));
+    final bytes7 = await loader7.loadBytes(ctx);
+    expect(bytes7.buffer.asUint8List().toList(), defaultSvgStr.codeUnits);
+
+    final loader8 = SvgBytesLoader(
+      Uint8List.fromList([1]),
+      errorIconPath: 'custom_error.svg',
+    );
+    final bytes8 = await loader8.loadBytes(ctx);
+    expect(bytes8.buffer.asUint8List().toList(), customSvgStr.codeUnits);
+  });
 }
 
 class TestBundle extends Fake implements AssetBundle {
@@ -180,5 +293,22 @@ class VerifyCloseClient extends Fake implements http.Client {
   void close() {
     assert(!closeCalled);
     closeCalled = true;
+  }
+}
+
+class SyncTestBundle extends Fake implements AssetBundle {
+  SyncTestBundle(this.map);
+  final Map<String, ByteData> map;
+  @override
+  Future<ByteData> load(String key) {
+    if (map.containsKey(key)) return SynchronousFuture(map[key]!);
+    throw Exception('Not found');
+  }
+}
+
+class ThrowingClient extends Fake implements http.Client {
+  @override
+  Future<http.Response> get(Uri url, {Map<String, String>? headers}) async {
+    throw Exception('Simulated network error');
   }
 }
