@@ -485,11 +485,7 @@ void main() {
         data: mediaQueryData,
         child: RepaintBoundary(
           key: key,
-          child: SvgPicture.network(
-            'test.svg',
-            httpClient: FakeHttpClient(),
-            networkErrorIconPath: '',
-          ),
+          child: SvgPicture.network('test.svg', httpClient: FakeHttpClient()),
         ),
       ),
     );
@@ -506,7 +502,7 @@ void main() {
           key: key,
           child: SvgPicture.network(
             'test.svg',
-            networkErrorIconPath: '',
+
             httpClient: FakeHttpClient(),
             renderingStrategy: RenderingStrategy.raster,
           ),
@@ -528,7 +524,7 @@ void main() {
           key: key,
           child: SvgPicture.network(
             'test.svg',
-            networkErrorIconPath: '',
+
             httpClient: FakeHttpClient(),
             colorMapper: const _TestColorMapper(),
           ),
@@ -549,7 +545,7 @@ void main() {
           key: key,
           child: SvgPicture.network(
             'test.svg',
-            networkErrorIconPath: '',
+
             headers: const <String, String>{'a': 'b'},
             httpClient: client,
           ),
@@ -581,11 +577,7 @@ void main() {
       await tester.pumpWidget(
         MediaQuery(
           data: mediaQueryData,
-          child: SvgPicture.network(
-            'notFound.svg',
-            networkErrorIconPath: '',
-            httpClient: client,
-          ),
+          child: SvgPicture.network('notFound.svg', httpClient: client),
         ),
       );
     }, isNotNull);
@@ -1029,7 +1021,7 @@ void main() {
           data: mediaQueryData,
           child: SvgPicture.network(
             'test.svg',
-            networkErrorIconPath: '',
+
             httpClient: DelayedHttpClient(response.future),
             imageBuilder: (BuildContext context, Widget child) {
               return Container(

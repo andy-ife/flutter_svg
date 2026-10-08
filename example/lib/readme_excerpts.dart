@@ -58,7 +58,6 @@ Widget loadNetworkAssetWithPlaceholder() {
   // #docregion AssetWithPlaceholder
   final Widget networkSvg = SvgPicture.network(
     'https://site-that-takes-a-while.com/image.svg',
-    networkErrorIconPath: '',
     semanticsLabel: 'A shark?!',
     placeholderBuilder: (BuildContext context) => Container(
       padding: const EdgeInsets.all(30.0),

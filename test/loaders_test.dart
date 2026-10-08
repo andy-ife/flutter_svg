@@ -95,7 +95,7 @@ void main() {
 
     await http.runWithClient(
       () async {
-        const loader = SvgNetworkLoader('', networkErrorIconPath: '');
+        const loader = SvgNetworkLoader('');
 
         expect(createdClients, isEmpty);
         await loader.prepareMessage(null);
@@ -113,12 +113,14 @@ void main() {
 
   test("SvgNetworkLoader doesn't close passed client", () async {
     final client = VerifyCloseClient();
-    final loader = SvgNetworkLoader('', httpClient: client as http.Client, networkErrorIconPath: '');
+    final loader = SvgNetworkLoader('', httpClient: client as http.Client);
 
     expect(client.closeCalled, isFalse);
     await loader.prepareMessage(null);
     expect(client.closeCalled, isFalse);
   });
+
+  
 }
 
 class TestBundle extends Fake implements AssetBundle {

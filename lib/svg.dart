@@ -118,6 +118,8 @@ class SvgPicture extends StatelessWidget {
   /// Otherwise, the image dimensions will change as the image is loaded, which
   /// will result in ugly layout changes.
   ///
+  /// `errorIconPath` is the path to an svg to show in case of loading errors
+  ///
   /// If `matchTextDirection` is set to true, the picture will be flipped
   /// horizontally in [TextDirection.rtl] contexts.
   ///
@@ -207,12 +209,14 @@ class SvgPicture extends StatelessWidget {
     ui.BlendMode colorBlendMode = ui.BlendMode.srcIn,
     @Deprecated('This no longer does anything.') bool cacheColorFilter = false,
     this.renderingStrategy = RenderingStrategy.picture,
+    String? errorIconPath,
   }) : bytesLoader = SvgAssetLoader(
          assetName,
          packageName: package,
          assetBundle: bundle,
          theme: theme,
          colorMapper: colorMapper,
+         errorIconPath: errorIconPath,
        ),
        colorFilter = colorFilter ?? _getColorFilter(color, colorBlendMode);
 
@@ -224,6 +228,8 @@ class SvgPicture extends StatelessWidget {
   /// widget should be placed in a context that sets tight layout constraints.
   /// Otherwise, the image dimensions will change as the image is loaded, which
   /// will result in ugly layout changes.
+  ///
+  /// `errorIconPath` is the path to an svg to show in case of loading errors
   ///
   /// If `matchTextDirection` is set to true, the picture will be flipped
   /// horizontally in [TextDirection.rtl] contexts.
@@ -272,9 +278,7 @@ class SvgPicture extends StatelessWidget {
     SvgTheme? theme,
     ColorMapper? colorMapper,
     http.Client? httpClient,
-
-    /// Path to an asset to show in case of http errors. Required
-    required String networkErrorIconPath,
+    String? errorIconPath,
     this.renderingStrategy = RenderingStrategy.picture,
   }) : bytesLoader = SvgNetworkLoader(
          url,
@@ -282,7 +286,7 @@ class SvgPicture extends StatelessWidget {
          theme: theme,
          colorMapper: colorMapper,
          httpClient: httpClient,
-         networkErrorIconPath: networkErrorIconPath,
+         errorIconPath: errorIconPath,
        ),
        colorFilter = colorFilter ?? _getColorFilter(color, colorBlendMode);
 
@@ -294,6 +298,8 @@ class SvgPicture extends StatelessWidget {
   /// widget should be placed in a context that sets tight layout constraints.
   /// Otherwise, the image dimensions will change as the image is loaded, which
   /// will result in ugly layout changes.
+  ///
+  /// `errorIconPath` is the path to an svg to show in case of loading errors
   ///
   /// If `matchTextDirection` is set to true, the picture will be flipped
   /// horizontally in [TextDirection.rtl] contexts.
@@ -337,12 +343,14 @@ class SvgPicture extends StatelessWidget {
     this.imageBuilder,
     SvgTheme? theme,
     ColorMapper? colorMapper,
+    String? errorIconPath,
     @Deprecated('This no longer does anything.') bool cacheColorFilter = false,
     this.renderingStrategy = RenderingStrategy.picture,
   }) : bytesLoader = SvgFileLoader(
          file,
          theme: theme,
          colorMapper: colorMapper,
+         errorIconPath: errorIconPath,
        ),
        colorFilter = colorFilter ?? _getColorFilter(color, colorBlendMode);
 
@@ -354,6 +362,8 @@ class SvgPicture extends StatelessWidget {
   /// widget should be placed in a context that sets tight layout constraints.
   /// Otherwise, the image dimensions will change as the image is loaded, which
   /// will result in ugly layout changes.
+  ///
+  /// `errorIconPath` is the path to an svg to show in case of loading errors
   ///
   /// If `matchTextDirection` is set to true, the picture will be flipped
   /// horizontally in [TextDirection.rtl] contexts.
@@ -396,10 +406,12 @@ class SvgPicture extends StatelessWidget {
     ColorMapper? colorMapper,
     @Deprecated('This no longer does anything.') bool cacheColorFilter = false,
     this.renderingStrategy = RenderingStrategy.picture,
+    String? errorIconPath,
   }) : bytesLoader = SvgBytesLoader(
          bytes,
          theme: theme,
          colorMapper: colorMapper,
+         errorIconPath: errorIconPath,
        ),
        colorFilter = colorFilter ?? _getColorFilter(color, colorBlendMode);
 
@@ -411,6 +423,8 @@ class SvgPicture extends StatelessWidget {
   /// widget should be placed in a context that sets tight layout constraints.
   /// Otherwise, the image dimensions will change as the image is loaded, which
   /// will result in ugly layout changes.
+  ///
+  /// `errorIconPath` is the path to an svg to show in case of loading errors
   ///
   /// If `matchTextDirection` is set to true, the picture will be flipped
   /// horizontally in [TextDirection.rtl] contexts.
@@ -453,10 +467,12 @@ class SvgPicture extends StatelessWidget {
     ColorMapper? colorMapper,
     @Deprecated('This no longer does anything.') bool cacheColorFilter = false,
     this.renderingStrategy = RenderingStrategy.picture,
+    String? errorIconPath,
   }) : bytesLoader = SvgStringLoader(
          string,
          theme: theme,
          colorMapper: colorMapper,
+         errorIconPath: errorIconPath,
        ),
        colorFilter = colorFilter ?? _getColorFilter(color, colorBlendMode);
 

@@ -120,13 +120,16 @@ class _DelegateVgColorMapper extends vg.ColorMapper {
 @immutable
 abstract class SvgLoader<T> extends BytesLoader {
   /// See class doc.
-  const SvgLoader({this.theme, this.colorMapper});
+  const SvgLoader({this.theme, this.colorMapper, this.errorIconPath});
 
   /// The theme to determine currentColor and font sizing attributes.
   final SvgTheme? theme;
 
   /// The [ColorMapper] used to transform colors from the SVG, if any.
   final ColorMapper? colorMapper;
+
+  /// The icon to show in case of svg load errors
+  final String? errorIconPath;
 
   /// Will be called in [compute] with the result of [prepareMessage].
   @protected
@@ -154,29 +157,43 @@ abstract class SvgLoader<T> extends BytesLoader {
   }
 
   Future<ByteData> _load(BuildContext? context) {
-    final SvgTheme theme = getTheme(context);
-    return prepareMessage(context).then((T? message) {
-      return compute(
-        (T? message) {
-          return vg
-              .encodeSvg(
-                xml: provideSvg(message),
-                theme: theme.toVgTheme(),
-                colorMapper: colorMapper == null
-                    ? null
-                    : _DelegateVgColorMapper(colorMapper!),
-                debugName: 'Svg loader',
-                enableClippingOptimizer: false,
-                enableMaskingOptimizer: false,
-                enableOverdrawOptimizer: false,
-              )
-              .buffer
-              .asByteData();
-        },
-        message,
-        debugLabel: 'Load Bytes',
-      );
-    });
+    /// Helper to get the errorIconPath's asset from rootBundle
+    AssetBundle _resolveBundle(BuildContext? context) {
+      if (context != null) {
+        return DefaultAssetBundle.of(context);
+      }
+      return rootBundle;
+    }
+
+    try {
+      final SvgTheme theme = getTheme(context);
+      return prepareMessage(context).then((T? message) {
+        return compute(
+          (T? message) {
+            return vg
+                .encodeSvg(
+                  xml: provideSvg(message),
+                  theme: theme.toVgTheme(),
+                  colorMapper: colorMapper == null
+                      ? null
+                      : _DelegateVgColorMapper(colorMapper!),
+                  debugName: 'Svg loader',
+                  enableClippingOptimizer: false,
+                  enableMaskingOptimizer: false,
+                  enableOverdrawOptimizer: false,
+                )
+                .buffer
+                .asByteData();
+          },
+          message,
+          debugLabel: 'Load Bytes',
+        );
+      });
+    } catch (e) {
+      return _resolveBundle(
+        context,
+      ).load(errorIconPath ?? 'assets/svg/error_network.svg');
+    }
   }
 
   /// This method intentionally avoids using `await` to avoid unnecessary event
@@ -233,7 +250,12 @@ class SvgCacheKey {
 /// vector_graphics binary representation.
 class SvgStringLoader extends SvgLoader<void> {
   /// See class doc.
-  const SvgStringLoader(this._svg, {super.theme, super.colorMapper});
+  const SvgStringLoader(
+    this._svg, {
+    super.theme,
+    super.colorMapper,
+    super.errorIconPath,
+  });
 
   final String _svg;
 
@@ -259,7 +281,12 @@ class SvgStringLoader extends SvgLoader<void> {
 /// representation.
 class SvgBytesLoader extends SvgLoader<void> {
   /// See class doc.
-  const SvgBytesLoader(this.bytes, {super.theme, super.colorMapper});
+  const SvgBytesLoader(
+    this.bytes, {
+    super.theme,
+    super.colorMapper,
+    super.errorIconPath,
+  });
 
   /// The UTF-8 encoded XML bytes.
   final Uint8List bytes;
@@ -283,7 +310,12 @@ class SvgBytesLoader extends SvgLoader<void> {
 /// a vector_graphics binary representation.
 class SvgFileLoader extends SvgLoader<void> {
   /// See class doc.
-  const SvgFileLoader(this.file, {super.theme, super.colorMapper});
+  const SvgFileLoader(
+    this.file, {
+    super.theme,
+    super.colorMapper,
+    super.errorIconPath,
+  });
 
   /// The file containing the SVG data to decode and render.
   final File file;
@@ -348,6 +380,7 @@ class SvgAssetLoader extends SvgLoader<ByteData> {
     this.assetBundle,
     super.theme,
     super.colorMapper,
+    super.errorIconPath,
   });
 
   /// The name of the asset, e.g. foo.svg.
@@ -422,7 +455,7 @@ class SvgNetworkLoader extends SvgLoader<Uint8List> {
     super.theme,
     super.colorMapper,
     http.Client? httpClient,
-    required this.networkErrorIconPath,
+    super.errorIconPath,
   }) : _httpClient = httpClient;
 
   /// The [Uri] encoded resource address.
@@ -432,9 +465,6 @@ class SvgNetworkLoader extends SvgLoader<Uint8List> {
   final Map<String, String>? headers;
 
   final http.Client? _httpClient;
-
-  /// Path to an asset to show in case of http errors. Required
-  final String networkErrorIconPath;
 
   /// Helper to get the networkeErrorIconPath's asset from rootBundle
   AssetBundle _resolveBundle(BuildContext? context) {
@@ -458,7 +488,9 @@ class SvgNetworkLoader extends SvgLoader<Uint8List> {
       return response.bodyBytes;
     } catch (e) {
       debugPrint(e.toString());
-      final byteData = await _resolveBundle(context).load(networkErrorIconPath);
+      final byteData = await _resolveBundle(
+        context,
+      ).load(errorIconPath ?? 'assets/svg/error_network.svg');
       return byteData.buffer.asUint8List();
     }
   }
