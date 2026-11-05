@@ -497,7 +497,7 @@ class SvgNetworkLoader extends SvgLoader<Uint8List> {
         client.close();
       }
       if (response.statusCode < 200 || response.statusCode > 299) {
-        throw 'Invalid response code';
+        throw 'Invalid svg url response code';
       }
       return response.bodyBytes;
     } catch (e) {
