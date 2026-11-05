@@ -496,9 +496,13 @@ class SvgNetworkLoader extends SvgLoader<Uint8List> {
       if (_httpClient == null) {
         client.close();
       }
+      if (response.statusCode < 200 || response.statusCode > 299) {
+        throw 'Invalid response code';
+      }
       return response.bodyBytes;
     } catch (e) {
       debugPrint(e.toString());
+      // Make sure we return something valid so parser doesn't throw
       final byteData = await _resolveBundle(
         context,
       ).load(errorIconPath ?? 'assets/svg/error_network.svg');
