@@ -156,55 +156,58 @@ abstract class SvgLoader<T> extends BytesLoader {
     return const SvgTheme();
   }
 
-  Future<ByteData> _load(BuildContext? context) {
-    /// Helper to get the errorIconPath's asset from rootBundle
-    AssetBundle _resolveBundle(BuildContext? context) {
-      if (context != null) {
-        return DefaultAssetBundle.of(context);
-      }
-      return rootBundle;
-    }
+  Future<ByteData> _load(BuildContext? context) async {
+    final SvgTheme theme = getTheme(context);
+    final AssetBundle bundle = context != null
+        ? DefaultAssetBundle.of(context)
+        : rootBundle;
+    final String fallback = errorIconPath ?? 'assets/svg/error_network.svg';
 
-    // Helper to return the errorIconPath on errors
-    Future<ByteData> _errorData() {
-      return _resolveBundle(
-        context,
-      ).load(errorIconPath ?? 'assets/svg/error_network.svg');
-    }
-
+    String xml;
     try {
-      final SvgTheme theme = getTheme(context);
-      return prepareMessage(context)
-          .then((T? message) {
-            return compute(
-              (T? message) {
-                return vg
-                    .encodeSvg(
-                      xml: provideSvg(message),
-                      theme: theme.toVgTheme(),
-                      colorMapper: colorMapper == null
-                          ? null
-                          : _DelegateVgColorMapper(colorMapper!),
-                      debugName: 'Svg loader',
-                      enableClippingOptimizer: false,
-                      enableMaskingOptimizer: false,
-                      enableOverdrawOptimizer: false,
-                    )
-                    .buffer
-                    .asByteData();
-              },
-              message,
-              debugLabel: 'Load Bytes',
-            ).onError((e, st) {
-              return _errorData();
-            });
-          })
-          .onError((e, st) {
-            return _errorData();
-          });
-    } catch (e) {
-      return _errorData();
+      xml = provideSvg(await prepareMessage(context));
+    } catch (e, st) {
+      debugPrint('$e\n$st');
+      xml = utf8.decode(
+        Uint8List.sublistView(await bundle.load(fallback)),
+        allowMalformed: true,
+      );
     }
+    return _encode(xml, theme, colorMapper).catchError((e, st) async {
+      debugPrint('$e\n$st');
+      final data = await bundle.load(fallback);
+      return _encode(
+        utf8.decode(Uint8List.sublistView(data), allowMalformed: true),
+        theme,
+        colorMapper,
+      );
+    });
+  }
+
+  // static => isolate message contains xml/theme/colorMapper only, no BuildContext
+  static Future<ByteData> _encode(
+    String xml,
+    SvgTheme theme,
+    ColorMapper? colorMapper,
+  ) {
+    return compute(
+      (String xml) => vg
+          .encodeSvg(
+            xml: xml,
+            theme: theme.toVgTheme(),
+            colorMapper: colorMapper == null
+                ? null
+                : _DelegateVgColorMapper(colorMapper),
+            debugName: 'Svg loader',
+            enableClippingOptimizer: false,
+            enableMaskingOptimizer: false,
+            enableOverdrawOptimizer: false,
+          )
+          .buffer
+          .asByteData(),
+      xml,
+      debugLabel: 'Load Bytes',
+    );
   }
 
   /// This method intentionally avoids using `await` to avoid unnecessary event
