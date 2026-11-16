@@ -78,11 +78,19 @@ class Cache {
     } else {
       pendingResult = loader();
       _pending[key] = pendingResult;
-      pendingResult.then((ByteData data) {
-        _pending.remove(key);
-        _add(key, data);
-        result = data; // in case it was a synchronous future.
-      });
+      pendingResult.then(
+        (ByteData data) {
+          _pending.remove(key);
+          _add(key, data);
+          result = data; // in case it was a synchronous future.
+        },
+        onError: (Object error, StackTrace stackTrace) {
+          // Don't leave a rejected future in `_pending`: otherwise every
+          // subsequent request for this key returns the same failure and the
+          // error is reported as an uncaught zone error.
+          _pending.remove(key);
+        },
+      );
     }
     if (result != null) {
       _add(key, result!);
@@ -107,4 +115,11 @@ class Cache {
 
   /// The number of entries in the cache.
   int get count => _cache.length;
+
+  /// The number of loads that are currently in flight.
+  ///
+  /// Failed loads are removed from this set so that a later request retries
+  /// instead of replaying the failure.
+  @visibleForTesting
+  int get pendingCount => _pending.length;
 }

@@ -24,5 +24,6 @@ topics:
   - svg
   - vector-graphics
 
-assets:
-- /assets/svg
+flutter:
+  assets:
+    - assets/svg/

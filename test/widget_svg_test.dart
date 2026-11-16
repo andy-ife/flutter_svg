@@ -1050,7 +1050,21 @@ void main() {
     });
   });
 
-  group('SvgPicture - errorBuilder', () {
+  group('SvgPicture - failure handling', () {
+    // This fork replaces load and parse failures with the fallback icon, so
+    // `errorBuilder` is only reached when that icon cannot be loaded either.
+    // `test/loaders_test.dart` covers that last-resort path.
+    Widget errorBuilder(
+      BuildContext context,
+      Object error,
+      StackTrace stackTrace,
+    ) {
+      return const Directionality(
+        textDirection: TextDirection.ltr,
+        child: Text('image failed'),
+      );
+    }
+
     testWidgets('SvgPicture.string handles failure', (
       WidgetTester tester,
     ) async {
@@ -1059,19 +1073,14 @@ void main() {
           data: mediaQueryData,
           child: SvgPicture.string(
             '<!-- invalid svg -->',
-            errorBuilder:
-                (BuildContext context, Object error, StackTrace stackTrace) {
-                  return const Directionality(
-                    textDirection: TextDirection.ltr,
-                    child: Text('image failed'),
-                  );
-                },
+            errorBuilder: errorBuilder,
           ),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('image failed'), findsOneWidget);
+      expect(find.text('image failed'), findsNothing);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('SvgPicture.memory handles failure', (
@@ -1082,19 +1091,14 @@ void main() {
           data: mediaQueryData,
           child: SvgPicture.memory(
             Uint8List.fromList(utf8.encode('<!-- invalid svg -->')),
-            errorBuilder:
-                (BuildContext context, Object error, StackTrace stackTrace) {
-                  return const Directionality(
-                    textDirection: TextDirection.ltr,
-                    child: Text('image failed'),
-                  );
-                },
+            errorBuilder: errorBuilder,
           ),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('image failed'), findsOneWidget);
+      expect(find.text('image failed'), findsNothing);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('SvgPicture.asset handles failure', (
@@ -1103,21 +1107,13 @@ void main() {
       await tester.pumpWidget(
         MediaQuery(
           data: mediaQueryData,
-          child: SvgPicture.asset(
-            '/wrong path',
-            errorBuilder:
-                (BuildContext context, Object error, StackTrace stackTrace) {
-                  return const Directionality(
-                    textDirection: TextDirection.ltr,
-                    child: Text('image failed'),
-                  );
-                },
-          ),
+          child: SvgPicture.asset('/wrong path', errorBuilder: errorBuilder),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('image failed'), findsOneWidget);
+      expect(find.text('image failed'), findsNothing);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('SvgPicture.file handles failure', (WidgetTester tester) async {
@@ -1126,19 +1122,14 @@ void main() {
           data: mediaQueryData,
           child: SvgPicture.file(
             File('nosuchfile'),
-            errorBuilder:
-                (BuildContext context, Object error, StackTrace stackTrace) {
-                  return const Directionality(
-                    textDirection: TextDirection.ltr,
-                    child: Text('image failed'),
-                  );
-                },
+            errorBuilder: errorBuilder,
           ),
         ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('image failed'), findsOneWidget);
+      expect(find.text('image failed'), findsNothing);
+      expect(tester.takeException(), isNull);
     });
   });
 }

@@ -194,46 +194,96 @@ void main() {
 
     svg.cache.clear();
 
-    // SvgStringLoader (doesn't compile fallback because _load catch block returns it raw)
+    // SvgStringLoader (the fallback is compiled like any other SVG)
     final loader3 = const SvgStringLoader('<invalid');
     final bytes3 = await loader3.loadBytes(ctx);
-    expect(bytes3.buffer.asUint8List().toList(), defaultSvgStr.codeUnits);
+    expect(
+      bytes3.buffer.asUint8List().toList(),
+      defaultVgBytes.buffer.asUint8List().toList(),
+    );
 
     final loader4 = const SvgStringLoader(
       '<invalid2',
       errorIconPath: 'custom_error.svg',
     );
     final bytes4 = await loader4.loadBytes(ctx);
-    expect(bytes4.buffer.asUint8List().toList(), customSvgStr.codeUnits);
+    expect(
+      bytes4.buffer.asUint8List().toList(),
+      customVgBytes.buffer.asUint8List().toList(),
+    );
 
     svg.cache.clear();
 
     // SvgAssetLoader
     final loader5 = const SvgAssetLoader('missing.svg');
     final bytes5 = await loader5.loadBytes(ctx);
-    expect(bytes5.buffer.asUint8List().toList(), defaultSvgStr.codeUnits);
+    expect(
+      bytes5.buffer.asUint8List().toList(),
+      defaultVgBytes.buffer.asUint8List().toList(),
+    );
 
     final loader6 = const SvgAssetLoader(
       'missing2.svg',
       errorIconPath: 'custom_error.svg',
     );
     final bytes6 = await loader6.loadBytes(ctx);
-    expect(bytes6.buffer.asUint8List().toList(), customSvgStr.codeUnits);
+    expect(
+      bytes6.buffer.asUint8List().toList(),
+      customVgBytes.buffer.asUint8List().toList(),
+    );
 
     svg.cache.clear();
 
     // SvgBytesLoader
     final loader7 = SvgBytesLoader(Uint8List.fromList([0]));
     final bytes7 = await loader7.loadBytes(ctx);
-    expect(bytes7.buffer.asUint8List().toList(), defaultSvgStr.codeUnits);
+    expect(
+      bytes7.buffer.asUint8List().toList(),
+      defaultVgBytes.buffer.asUint8List().toList(),
+    );
 
     final loader8 = SvgBytesLoader(
       Uint8List.fromList([1]),
       errorIconPath: 'custom_error.svg',
     );
     final bytes8 = await loader8.loadBytes(ctx);
-    expect(bytes8.buffer.asUint8List().toList(), customSvgStr.codeUnits);
+    expect(
+      bytes8.buffer.asUint8List().toList(),
+      customVgBytes.buffer.asUint8List().toList(),
+    );
   });
+
+  testWidgets(
+    'Original failure is preserved when the error icon is unavailable',
+    (tester) async {
+      // The fallback icon is the primary recovery path. When it cannot be
+      // loaded either, the original error must still reach
+      // `SvgPicture.errorBuilder` instead of being replaced by an asset error.
+      final bundle = SyncTestBundle(<String, ByteData>{});
+
+      BuildContext? ctx;
+      await tester.pumpWidget(
+        DefaultAssetBundle(
+          bundle: bundle,
+          child: Builder(
+            builder: (BuildContext c) {
+              ctx = c;
+              return const SizedBox();
+            },
+          ),
+        ),
+      );
+
+      const loader = SvgStringLoader(
+        '<!-- invalid svg -->',
+        errorIconPath: 'missing_error.svg',
+      );
+
+      await expectLater(loader.loadBytes(ctx), throwsA(isA<StateError>()));
+      expect(svg.cache.count, 0);
+      expect(svg.cache.pendingCount, 0);
+    },
+  );
 }
 
 class TestBundle extends Fake implements AssetBundle {

@@ -156,32 +156,94 @@ abstract class SvgLoader<T> extends BytesLoader {
     return const SvgTheme();
   }
 
-  Future<ByteData> _load(BuildContext? context) async {
+  /// Fallback icon path used by earlier versions of this fork. Apps that
+  /// already bundle this asset keep working without changes.
+  static const String _appErrorIconPath = 'assets/svg/error_network.svg';
+
+  /// Fallback icon that ships with this package, used when the app does not
+  /// provide one of its own.
+  static const String _bundledErrorIconPath =
+      'packages/flutter_svg/assets/svg/error_network.svg';
+
+  /// Intentionally not `async`: this keeps the synchronous fast path intact in
+  /// debug/test mode, where [compute] runs inline and returns a
+  /// [SynchronousFuture]. Note that [SynchronousFuture.catchError] returns a
+  /// future that never completes, so errors must be handled with `then`/
+  /// `try`-`catch` rather than `catchError`.
+  Future<ByteData> _load(BuildContext? context) {
     final SvgTheme theme = getTheme(context);
     final AssetBundle bundle = context != null
         ? DefaultAssetBundle.of(context)
         : rootBundle;
-    final String fallback = errorIconPath ?? 'assets/svg/error_network.svg';
 
-    String xml;
-    try {
-      xml = provideSvg(await prepareMessage(context));
-    } catch (e, st) {
-      debugPrint('$e\n$st');
-      xml = utf8.decode(
-        Uint8List.sublistView(await bundle.load(fallback)),
-        allowMalformed: true,
+    /// Replaces a failed load with the error icon. If the error icon itself
+    /// cannot be loaded, the original error is preserved so that it still
+    /// reaches `SvgPicture.errorBuilder`.
+    Future<ByteData> useErrorIcon(Object error, StackTrace stackTrace) {
+      return _encodeErrorIcon(bundle, theme).then(
+        (ByteData data) => data,
+        onError: (Object _, StackTrace _) =>
+            Error.throwWithStackTrace(error, stackTrace),
       );
     }
-    return _encode(xml, theme, colorMapper).catchError((e, st) async {
-      debugPrint('$e\n$st');
-      final data = await bundle.load(fallback);
-      return _encode(
-        utf8.decode(Uint8List.sublistView(data), allowMalformed: true),
-        theme,
-        colorMapper,
-      );
-    });
+
+    try {
+      return prepareMessage(context).then((T? message) {
+        try {
+          return _encode(
+            provideSvg(message),
+            theme,
+            colorMapper,
+          ).then((ByteData data) => data, onError: useErrorIcon);
+        } catch (error, stackTrace) {
+          // `compute` runs synchronously in debug/test mode, so encoding
+          // failures are thrown here instead of completing the future.
+          return useErrorIcon(error, stackTrace);
+        }
+      }, onError: useErrorIcon);
+    } catch (error, stackTrace) {
+      // [prepareMessage] may throw synchronously (e.g. a custom
+      // [AssetBundle] that rejects unknown keys).
+      return useErrorIcon(error, stackTrace);
+    }
+  }
+
+  /// Loads and compiles the fallback icon. Never throws synchronously, so the
+  /// result can be returned from [_load] directly.
+  Future<ByteData> _encodeErrorIcon(AssetBundle bundle, SvgTheme theme) {
+    final String? customPath = errorIconPath;
+    return _encodeAsset(bundle, customPath ?? _appErrorIconPath, theme).then(
+      (ByteData data) => data,
+      onError: (Object error, StackTrace stackTrace) {
+        if (customPath != null) {
+          // An explicitly requested icon should not be silently replaced.
+          return Future<ByteData>.error(error, stackTrace);
+        }
+        return _encodeAsset(bundle, _bundledErrorIconPath, theme);
+      },
+    );
+  }
+
+  Future<ByteData> _encodeAsset(
+    AssetBundle bundle,
+    String path,
+    SvgTheme theme,
+  ) {
+    try {
+      return bundle.load(path).then((ByteData data) {
+        try {
+          return _encode(
+            utf8.decode(Uint8List.sublistView(data), allowMalformed: true),
+            theme,
+            colorMapper,
+          );
+        } catch (error, stackTrace) {
+          return Future<ByteData>.error(error, stackTrace);
+        }
+      });
+    } catch (error, stackTrace) {
+      return Future<ByteData>.error(error, stackTrace);
+    }
   }
 
   // static => isolate message contains xml/theme/colorMapper only, no BuildContext
